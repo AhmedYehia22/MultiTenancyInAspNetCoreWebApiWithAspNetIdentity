@@ -64,7 +64,7 @@ namespace MultiTenancy.Controllers
             {
                 Name = tenantRequest.TenantName,
                 DbProvider = "mssql",
-                ConnectionString = $"server=(localdb)\\ProjectModels;database={tenantRequest.TenantName}Db;trusted_Connection=true;TrustServerCertificate=true;MultipleActiveResultSets=true;"
+                ConnectionString = $"server=DESKTOP-PMMVBDI\\SQLEXPRESS;database={tenantRequest.TenantName}Db;trusted_Connection=true;TrustServerCertificate=true;MultipleActiveResultSets=true;"
             };
             await _context.Tenants.AddAsync(tenant);
             _context.SaveChanges();
@@ -75,8 +75,10 @@ namespace MultiTenancy.Controllers
                 Email = tenantRequest.OwnerEmail,
                 NormalizedEmail = tenantRequest.OwnerEmail,
                 TenantId = tenantRequest.TenantName,
-                
-                EmailConfirmed = true,
+                AppTenantId = tenant.Id,
+                FirstName="",
+                LastName= "",
+                EmailConfirmed = false,
                 LockoutEnabled = false,
                 SecurityStamp = Guid.NewGuid().ToString()
             };
@@ -86,21 +88,35 @@ namespace MultiTenancy.Controllers
             var result = await _userManager.CreateAsync(tenantOwner, generatedPass);
             if (!result.Succeeded)
             {
+                 _context.Tenants.Remove(tenant);
+               await _context.SaveChangesAsync();
                 return BadRequest(result.Errors);
+               
             }
             await _userManager.AddToRoleAsync(tenantOwner, "tenantadmin");
-            await SendConfirmationEmail(tenantOwner.Email, tenantOwner);
-            return Ok("Tenant Created Successfully!");
+          if( await SendConfirmationEmail(tenantOwner.Email, tenantOwner))
+            {
+                return Ok("Tenant Created Successfully!");
+            }else
+            {
+                _context.Tenants.Remove(tenant);
+                await _context.SaveChangesAsync();
+                return BadRequest("Error Accured when sending verification email!");
+
+            }
+
+
         }
 
-        private async Task SendConfirmationEmail(string? email, AppUser? user)
+        private async Task<bool> SendConfirmationEmail(string? email, AppUser? user)
         {
             var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
             var confirmationLink = $"http://localhost:7060/api/Tenants/confirm-email?UserId={user.Id}&Token={token}";
-            await _emailService.SendEmailAsync(email, "Email Confrimation", $"<h3>Please confirm your account by</h3> <a href='{confirmationLink}'>clicking here</a>;.", true);
-
+            var result= _emailService.SendEmailAsync(email, "Email Confrimation", $"<h3>Please confirm your account by</h3> <a href='{confirmationLink}'>clicking here</a>;.", true);
+            return await result;
         }
-        [HttpGet("confirm-email")]
+        [HttpPost("confirm-email")]
+        [AllowAnonymous]
         public async Task<String> ConfirmEmail(string userId, string token)
         {
             var user = await _userManager.FindByIdAsync(userId);

@@ -10,7 +10,7 @@ namespace MultiTenancy.Services
         {
             _config = config;
         }
-        public Task SendEmailAsync(string toEmail, string subject, string body, bool isBodyHTML)
+        public async Task<bool> SendEmailAsync(string toEmail, string subject, string body, bool isBodyHTML)
         {
             string MailServer = _config["EmailSettings:MailServer"];
             string FromEmail = _config["EmailSettings:FromEmail"];
@@ -27,7 +27,16 @@ namespace MultiTenancy.Services
             {
                 IsBodyHtml = isBodyHTML
             };
-            return client.SendMailAsync(mailMessage);
+            try
+            {
+
+                // return client.SendMailAsync(mailMessage);
+              await  client.SendMailAsync(mailMessage);
+                return true;
+            }catch(Exception ex)
+            {
+                return false;
+            }
         }
     }
 }

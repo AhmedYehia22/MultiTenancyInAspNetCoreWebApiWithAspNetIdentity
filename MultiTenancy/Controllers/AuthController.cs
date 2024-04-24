@@ -58,7 +58,7 @@ namespace MultiTenancy.Controllers
                 return Ok(token);
             }
         [HttpGet("CreateNewRole")]
-        [Authorize(Roles="superadmin")]
+        //[Authorize(Roles="superadmin")]
         public async Task<IActionResult> CreateRole()
         {
             var roles = new[] { "superadmin", "tenantadmin", "manager","teacher","student" };
